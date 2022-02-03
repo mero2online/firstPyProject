@@ -7,6 +7,9 @@ import os
 
 destination_path = ''
 source_path = ''
+selected_item = ''
+startDateValue = ''
+endDateValue = ''
 
 currentDay = datetime.now().day
 currentMonth = datetime.now().month
@@ -17,13 +20,19 @@ cwd = os.getcwd()
 
 
 def createTask():
-    createTaskCommand = f'schtasks /create /tn Elevated-WellBackup /tr {cwd}\\backup.bat /sc daily /sd {startDateValue} /st {hour_text.get()}:{minute_text.get()} /ed {endDateValue} > out.txt'
+    if(startDateValue == ''):
+        messagebox.showerror('Error', 'Start Date can`t be empty')
+        return False
+    elif(endDateValue == ''):
+        messagebox.showerror('Error', 'End Date can`t be empty')
+        return False
+    createTaskCommand = f'schtasks /create /tn {source_path.split("/")[-1]}-Backup-Elevated /tr {cwd}\\{source_path.split("/")[-1]}-Backup.bat /sc daily /sd {startDateValue} /st {hour_text.get()}:{minute_text.get()} /ed {endDateValue} > out.txt'
     print(createTaskCommand)
-    # os.system(createTaskCommand)
-    # f = open('out.txt', 'r')
-    # out = f.read()
-    # f.close()
-    # return f'{out} Created'
+    os.system(createTaskCommand)
+    f = open('out.txt', 'r')
+    out = f.read()
+    f.close()
+    return f'{out} Created'
 
 
 def getAllBackupTasks():
@@ -41,17 +50,27 @@ def getAllBackupTasks():
     return tasksNames
 
 
-def deleteTask(taskName):
-    os.system(f'schtasks /delete /tn {taskName} /f > out.txt')
+def deleteTask():
+    os.system(f'schtasks /delete /tn {selected_item} /f > out.txt')
     f = open('out.txt', 'r')
     out = f.read()
     f.close()
+    populate_list()
+    os.remove(f'{"-".join(selected_item.split("-")[:-1])}.bat')
+    messagebox.showinfo('Info', f'Task {selected_item} deleted successfully')
     return f'{out} Deleted'
 
 
-def runCommand():
+def saveCommand():
+    if(source_path == ''):
+        messagebox.showerror('Error', 'Source path can`t be empty')
+        return False
+    elif(destination_path == ''):
+        messagebox.showerror('Error', 'Destination path can`t be empty')
+        return False
     command = f'Xcopy "{source_path}" "{destination_path}/{source_path.split("/")[-1]}" /E /H /C /I > out.txt'
-    saveCommand = open("backup.bat", "w")
+    saveCommand = open(
+        f'{source_path.split("/")[-1]}-Backup.bat', "w")
     saveCommand.write(command)
     saveCommand.close()
 
@@ -60,6 +79,16 @@ def runCommand():
     # print(f.read())
     # f.close()
     # os.remove('out.txt')
+
+
+def addTask():
+    if(saveCommand() == False):
+        return
+    if(createTask() == False):
+        return
+    populate_list()
+    messagebox.showinfo(
+        'Info', f'Task {source_path.split("/")[-1]}-Backup-Elevated created successfully')
 
 
 def browse_source_button():
@@ -85,6 +114,24 @@ def browse_destination_button():
         return destination_label.config(text='Choose another path')
     else:
         return destination_label.config(text=destination_path)
+
+
+def populate_list():
+    os.remove('out.txt')
+    tasks_list.delete(0, END)
+    tasks = getAllBackupTasks()
+    for task in tasks:
+        tasks_list.insert(END, task)
+
+
+def select_item(event):
+    try:
+        global selected_item
+        index = tasks_list.curselection()
+        selected_item = tasks_list.get(index)
+        print(selected_item)
+    except IndexError:
+        pass
 
 
 # Create window object
@@ -175,12 +222,21 @@ Button(app, text="Set End Date",
 endDate = Label(app, text="End Date")
 endDate.grid(row=5, column=1, pady=5)
 
-run_command_btn = Button(app, text='Run command',
-                         background='#A3E4DB', command=createTask)
+tasks_list = Listbox(app, height=8, width=50, border=0)
+tasks_list.grid(row=7, column=0, columnspan=3, rowspan=6, pady=20, padx=20)
+
+Button(app, text="Delete Task",
+       command=deleteTask).grid(row=13, column=0, pady=5)
+
+run_command_btn = Button(app, text='Add Task',
+                         background='#A3E4DB', command=addTask)
 run_command_btn.grid(pady=20, sticky=E)
 
+populate_list()
+tasks_list.bind('<<ListboxSelect>>', select_item)
+
 app.title('Command Runner')
-app.geometry('700x600')
+app.geometry('700x700')
 app.configure(bg='#000')
 
 # To center all app columns
