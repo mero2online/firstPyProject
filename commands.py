@@ -26,7 +26,12 @@ def createTask():
     elif(endDateValue == ''):
         messagebox.showerror('Error', 'End Date can`t be empty')
         return False
-    createTaskCommand = f'schtasks /create /tn {source_path.split("/")[-1]}-Backup-Elevated /tr {cwd}\\{source_path.split("/")[-1]}-Backup.bat /sc daily /sd {startDateValue} /st {hour_text.get()}:{minute_text.get()} /ed {endDateValue} > out.txt'
+    time = f'{hour_text.get()}:{minute_text.get()}'
+    taskName = f'{source_path.split("/")[-1]}-Backup-Elevated'
+    batchFileName = f'{source_path.split("/")[-1]}-Backup.bat'
+    # createTaskCommand = f'schtasks /create /tn {source_path.split("/")[-1]}-Backup-Elevated /tr {cwd}\\{source_path.split("/")[-1]}-Backup.bat /sc daily /sd {startDateValue} /st {hour_text.get()}:{minute_text.get()} /ed {endDateValue} > out.txt'
+    createTaskCommand = f'powershell $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument \'/c start /min "" "{cwd}\\{batchFileName}"\'; $Stt = New-ScheduledTaskTrigger -Daily -At {time}; Register-ScheduledTask -TaskName "{taskName}" -Action $Action -Trigger $Stt; $TargetTask = Get-ScheduledTask -TaskName "{taskName}"; $endTime=([DateTime]\'{endDateValue} {time}\').ToString(\'yyyy-MM-dd"T"HH:mm:ss\'); $TargetTask.Triggers[0].EndBoundary=$endTime; Set-ScheduledTask -InputObject $TargetTask;'
+
     print(createTaskCommand)
     os.system(createTaskCommand)
     f = open('out.txt', 'r')
@@ -68,7 +73,10 @@ def saveCommand():
     elif(destination_path == ''):
         messagebox.showerror('Error', 'Destination path can`t be empty')
         return False
-    command = f'Xcopy "{source_path}" "{destination_path}/{source_path.split("/")[-1]}" /E /H /C /I > out.txt'
+    source = source_path.replace("/", "\\")
+    dest = destination_path.replace("/", "\\")
+    destFolder = source_path.split("/")[-1]
+    command = f'md "{dest}\Folder"\nXcopy "{source}" "{dest}\Folder\{destFolder}" /E /H /C /I > {cwd}\out.txt\nREN "{dest}\Folder" "%date:~-4,4%"-"%date:~-10,2%"-"%date:~7,2% %Time::=.%"\nexit'
     saveCommand = open(
         f'{source_path.split("/")[-1]}-Backup.bat', "w")
     saveCommand.write(command)
